@@ -5,14 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ud.taller2.ui.theme.Taller2Theme
 import com.google.firebase.auth.FirebaseAuth
-import com.ud.taller2.GameScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
@@ -21,7 +18,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Inicializa Firebase Auth
         auth = FirebaseAuth.getInstance()
 
         setContent {
@@ -32,8 +28,12 @@ class MainActivity : ComponentActivity() {
                     composable("login") {
                         LoginScreen(auth = auth, navController = navController)
                     }
-                    composable("bienvenida") {
-                        GameScreen(navController = navController)
+                    composable("lobby") {
+                        LobbyScreen(navController = navController)
+                    }
+                    composable("juego/{codigo}") { backStackEntry ->
+                        val codigo = backStackEntry.arguments?.getString("codigo") ?: ""
+                        GameScreen(navController = navController, codigoPartida = codigo)
                     }
                 }
             }
