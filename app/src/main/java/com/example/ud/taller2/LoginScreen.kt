@@ -52,7 +52,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
-                            navController.navigate("bienvenida") {
+                            navController.navigate("lobby") {
                                 popUpTo("login") { inclusive = true }
                             }
                         } else {
