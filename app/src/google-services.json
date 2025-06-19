@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "814172164883",
+    "firebase_url": "https://login-794d5-default-rtdb.firebaseio.com",
+    "project_id": "login-794d5",
+    "storage_bucket": "login-794d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814172164883:android:3e377c7f12e40ba99c80e6",
+        "android_client_info": {
+          "package_name": "com.example.ud.taller2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZAXn9PvO03ZIftSiz6qDQUkH7-ZSRSKY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
