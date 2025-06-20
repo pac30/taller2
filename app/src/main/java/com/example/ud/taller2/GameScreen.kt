@@ -1,4 +1,4 @@
-package com.example.ud.taller2
+package com.ud.taller2
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -12,71 +12,184 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.ud.taller2.model.Partida
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.example.ud.taller2.model.Palabra
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.delay
 
 @Composable
-fun GameScreen(navController: NavController, codigoPartida: String) {
+fun GameScreen(navController: NavController, codigoPartida: String = "") {
+    val rows = 6
+    val cols = 7
     val context = LocalContext.current
+
+    // Firebase
     val db = FirebaseDatabase.getInstance().reference
-    val partidaRef = db.child("partidas").child(codigoPartida)
-    val uid = FirebaseAuth.getInstance().currentUser?.uid
 
-    var partida by remember { mutableStateOf(Partida()) }
+    // Estado del juego
+    var board by remember { mutableStateOf(List(rows) { MutableList(cols) { 0 } }) }
+    var isPlayerTurn by remember { mutableStateOf(true) }
+    var triggerMachineTurn by remember { mutableStateOf(false) }
     var winner by remember { mutableStateOf(0) }
-    var showDraw by remember { mutableStateOf(false) }
+    var showDrawMessage by remember { mutableStateOf(false) }
 
-    // Suscripción en tiempo real
-    DisposableEffect(Unit) {
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val actual = snapshot.getValue(Partida::class.java)
-                if (actual != null) {
-                    partida = actual
-                    winner = checkWin(actual.tablero)
-                    showDraw = isDraw(actual.tablero) && winner == 0
-                }
+    // Traducción
+    var palabraActual by remember { mutableStateOf<Palabra?>(null) }
+    var respuestaUsuario by remember { mutableStateOf("") }
+    var mostrarPregunta by remember { mutableStateOf(true) }
+    var mensajeError by remember { mutableStateOf("") }
+
+    fun cargarPalabraAleatoria() {
+        db.child("palabras").get().addOnSuccessListener { snapshot ->
+            val palabras = snapshot.children.mapNotNull { it.getValue(Palabra::class.java) }
+            if (palabras.isNotEmpty()) {
+                palabraActual = palabras.random()
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        partidaRef.addValueEventListener(listener)
-        onDispose {
-            partidaRef.removeEventListener(listener)
         }
     }
 
-    val isTurnoJugador = (uid == partida.jugador1 && partida.turno == 1) ||
-            (uid == partida.jugador2 && partida.turno == 2)
+    fun checkWin(player: Int): Boolean {
+        for (r in 0 until rows) {
+            for (c in 0..cols - 4) {
+                if ((0..3).all { board[r][c + it] == player }) return true
+            }
+        }
+        for (c in 0 until cols) {
+            for (r in 0..rows - 4) {
+                if ((0..3).all { board[r + it][c] == player }) return true
+            }
+        }
+        for (r in 0..rows - 4) {
+            for (c in 0..cols - 4) {
+                if ((0..3).all { board[r + it][c + it] == player }) return true
+            }
+        }
+        for (r in 3 until rows) {
+            for (c in 0..cols - 4) {
+                if ((0..3).all { board[r - it][c + it] == player }) return true
+            }
+        }
+        return false
+    }
+
+    fun dropPiece(column: Int, player: Int): Boolean {
+        for (row in (rows - 1) downTo 0) {
+            if (board[row][column] == 0) {
+                board = board.toMutableList().apply {
+                    this[row] = this[row].toMutableList().apply { this[column] = player }
+                }
+                if (checkWin(player)) winner = player
+                return true
+            }
+        }
+        return false
+    }
+
+    fun machineMove() {
+        val availableColumns = (0 until cols).filter { board[0][it] == 0 }
+        if (availableColumns.isNotEmpty()) {
+            val randomColumn = availableColumns.random()
+            dropPiece(randomColumn, 2)
+            isPlayerTurn = true
+            palabraActual = null
+            mostrarPregunta = true
+        }
+    }
+
+    fun isDraw(): Boolean = (winner == 0 && board.all { row -> row.none { it == 0 } })
+
+    fun resetGame() {
+        board = List(rows) { MutableList(cols) { 0 } }
+        isPlayerTurn = true
+        triggerMachineTurn = false
+        winner = 0
+        showDrawMessage = false
+        palabraActual = null
+        mostrarPregunta = true
+        respuestaUsuario = ""
+        mensajeError = ""
+    }
+
+    // Cargar palabra al iniciar turno
+    if (isPlayerTurn && palabraActual == null && winner == 0 && mostrarPregunta) {
+        cargarPalabraAleatoria()
+    }
+
+    LaunchedEffect(triggerMachineTurn) {
+        if (triggerMachineTurn && winner == 0) {
+            delay(800)
+            machineMove()
+            triggerMachineTurn = false
+        }
+    }
+
+    LaunchedEffect(board) {
+        if (isDraw()) {
+            showDrawMessage = true
+            Toast.makeText(context, "¡Empate!", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = when {
-                winner == 1 -> "¡Ganó Jugador 1!"
-                winner == 2 -> "¡Ganó Jugador 2!"
-                showDraw -> "¡Empate!"
-                else -> if (isTurnoJugador) "Tu turno" else "Turno del oponente"
+                winner == 1 -> "¡Jugador gana!"
+                winner == 2 -> "¡Máquina gana!"
+                showDrawMessage -> "¡Empate!"
+                else -> "Turno: ${if (isPlayerTurn) "Jugador" else "Máquina"}"
             },
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(8.dp)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (mostrarPregunta && palabraActual != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Traduce: ${palabraActual!!.esp}", style = MaterialTheme.typography.titleMedium)
 
-        partida.tablero.forEachIndexed { rowIndex, fila ->
-            Row {
-                fila.forEachIndexed { colIndex, celda ->
-                    val color = when (celda) {
+            OutlinedTextField(
+                value = respuestaUsuario,
+                onValueChange = { respuestaUsuario = it },
+                label = { Text("Traducción en inglés") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(onClick = {
+                if (respuestaUsuario.trim().equals(palabraActual!!.eng, ignoreCase = true)) {
+                    mostrarPregunta = false
+                    mensajeError = ""
+                } else {
+                    isPlayerTurn = false
+                    triggerMachineTurn = true
+                    palabraActual = null
+                    mostrarPregunta = true
+                    respuestaUsuario = ""
+                    mensajeError = "❌ Respuesta incorrecta. Turno perdido."
+                }
+            }) {
+                Text("Verificar")
+            }
+
+            if (mensajeError.isNotEmpty()) {
+                Text(mensajeError, color = MaterialTheme.colorScheme.error)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        for (row in 0 until rows) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                for (col in 0 until cols) {
+                    val cell = board[row][col]
+                    val color = when (cell) {
                         1 -> Color(0xFF4CAF50)
                         2 -> Color(0xFFE53935)
                         else -> Color(0xFFBDBDBD)
@@ -86,17 +199,17 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
                         modifier = Modifier
                             .padding(4.dp)
                             .size(40.dp)
-                            .background(color)
+                            .background(color, shape = MaterialTheme.shapes.medium)
                             .clickable(
-                                enabled = celda == 0 && winner == 0 && isTurnoJugador
+                                enabled = (cell == 0 && isPlayerTurn && winner == 0 && !showDrawMessage && !mostrarPregunta)
                             ) {
-                                hacerMovimiento(
-                                    partidaRef,
-                                    rowIndex,
-                                    colIndex,
-                                    partida,
-                                    uid
-                                )
+                                if (dropPiece(col, 1)) {
+                                    isPlayerTurn = false
+                                    triggerMachineTurn = true
+                                    palabraActual = null
+                                    mostrarPregunta = true
+                                    respuestaUsuario = ""
+                                }
                             }
                     )
                 }
@@ -105,81 +218,8 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = {
-            val nuevo = Partida(
-                jugador1 = partida.jugador1,
-                jugador2 = partida.jugador2
-            )
-            partidaRef.setValue(nuevo)
-        }) {
-            Text("Reiniciar")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedButton(onClick = {
-            navController.popBackStack()
-        }) {
-            Text("Salir")
+        Button(onClick = { resetGame() }) {
+            Text("Reiniciar juego")
         }
     }
-}
-
-// Encuentra la fila más baja libre en una columna
-fun hacerMovimiento(
-    ref: DatabaseReference,
-    fila: Int,
-    columna: Int,
-    actual: Partida,
-    uid: String?
-) {
-    if (uid == null) return
-    val tablero = actual.tablero.map { it.toMutableList() }.toMutableList()
-
-    for (r in (tablero.size - 1) downTo 0) {
-        if (tablero[r][columna] == 0) {
-            tablero[r][columna] = actual.turno
-            break
-        }
-    }
-
-    val nuevoTurno = if (actual.turno == 1) 2 else 1
-
-    val actualizada = actual.copy(
-        tablero = tablero,
-        turno = nuevoTurno
-    )
-    ref.setValue(actualizada)
-}
-
-// Validación de victoria
-fun checkWin(board: List<List<Int>>): Int {
-    val rows = board.size
-    val cols = board[0].size
-
-    fun checkDir(r: Int, c: Int, dr: Int, dc: Int): Int {
-        val player = board[r][c]
-        if (player == 0) return 0
-        for (i in 1..3) {
-            val nr = r + dr * i
-            val nc = c + dc * i
-            if (nr !in 0 until rows || nc !in 0 until cols || board[nr][nc] != player) return 0
-        }
-        return player
-    }
-
-    for (r in 0 until rows) {
-        for (c in 0 until cols) {
-            checkDir(r, c, 0, 1).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, 1, 0).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, 1, 1).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, -1, 1).takeIf { it != 0 }?.let { return it }
-        }
-    }
-
-    return 0
-}
-
-fun isDraw(board: List<List<Int>>): Boolean {
-    return board.all { row -> row.none { it == 0 } }
 }

@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ud.taller2.ui.theme.Taller2Theme
 import com.google.firebase.auth.FirebaseAuth
+import com.ud.taller2.GameScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
