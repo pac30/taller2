@@ -166,8 +166,3 @@ fun generateUniqueCode(
     tryGenerate()
 }
 
-// SIMPLE CODE GENERATOR FUNCTION
-fun generateCode(): String {
-    val chars = ('A'..'Z')
-    return (1..6).map { chars.random() }.joinToString("")
-}
