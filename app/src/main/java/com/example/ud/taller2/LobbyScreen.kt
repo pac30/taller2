@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.ud.taller2.model.Game
+import com.example.ud.taller2.model.Partida
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -20,9 +20,9 @@ fun LobbyScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseDatabase.getInstance().reference
 
-    var gameCode by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
-    var generatedCode by remember { mutableStateOf("") }
+    var codigoPartida by remember { mutableStateOf("") }
+    var mostrarDialogo by remember { mutableStateOf(false) }
+    var codigoGenerado by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -35,81 +35,81 @@ fun LobbyScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // CREATE GAME BUTTON
+        // BOTÓN CREAR PARTIDA
         Button(
             onClick = {
                 val uid = auth.currentUser?.uid
                 if (uid == null) {
-                    Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
-                generateUniqueCode(
+                generarCodigoUnico(
                     db = db,
-                    onSuccess = { code ->
-                        val game = Game(player1 = uid, turn = 1) // ✅ Player 1 (you) starts
-                        db.child("games").child(code).setValue(game)
+                    onSuccess = { codigo ->
+                        val partida = Partida(jugador1 = uid)
+                        db.child("partidas").child(codigo).setValue(partida)
                             .addOnSuccessListener {
-                                generatedCode = code
-                                showDialog = true
+                                codigoGenerado = codigo
+                                mostrarDialogo = true
                             }
                             .addOnFailureListener {
-                                Toast.makeText(context, "Failed to create game", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Error al crear partida", Toast.LENGTH_SHORT).show()
                             }
                     },
                     onError = {
-                        Toast.makeText(context, "Failed to validate code", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Error al verificar código", Toast.LENGTH_SHORT).show()
                     }
                 )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Create Game")
+            Text("Crear Partida")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // JOIN GAME TEXT FIELD
+        // CAMPO PARA UNIRSE
         OutlinedTextField(
-            value = gameCode,
-            onValueChange = { gameCode = it },
-            label = { Text("Game code") },
+            value = codigoPartida,
+            onValueChange = { codigoPartida = it },
+            label = { Text("Código de partida") },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // JOIN GAME BUTTON
+        // BOTÓN UNIRSE
         Button(
             onClick = {
                 val uid = auth.currentUser?.uid
                 if (uid == null) {
-                    Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
-                val code = gameCode.trim().uppercase()
-                val ref = db.child("games").child(code)
+                val codigo = codigoPartida.trim().uppercase()
+                val ref = db.child("partidas").child(codigo)
 
                 ref.get().addOnSuccessListener { data ->
                     if (data.exists()) {
-                        val game = data.getValue(Game::class.java)
-                        if (game?.player2?.isEmpty() == true && game.player1 != uid) {
-                            ref.child("player2").setValue(uid)
-                            navController.navigate("game/$code")
+                        val partida = data.getValue(Partida::class.java)
+                        if (partida?.jugador2?.isEmpty() == true && partida.jugador1 != uid) {
+                            ref.child("jugador2").setValue(uid)
+                            navController.navigate("juego/$codigo")
                         } else {
-                            Toast.makeText(context, "Game full or invalid", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Partida llena o inválida", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(context, "Invalid code", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Código no válido", Toast.LENGTH_SHORT).show()
                     }
                 }.addOnFailureListener {
-                    Toast.makeText(context, "Firebase error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Error al consultar Firebase", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Join Game")
+            Text("Unirse a Partida")
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -122,47 +122,46 @@ fun LobbyScreen(navController: NavController) {
                 }
             }
         ) {
-            Text("Log Out")
+            Text("Cerrar Sesión")
         }
     }
 
-    // DIALOG TO SHOW GENERATED GAME CODE
-    if (showDialog) {
+    // DIÁLOGO PARA MOSTRAR CÓDIGO GENERADO
+    if (mostrarDialogo) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { mostrarDialogo = false },
             confirmButton = {
                 Button(onClick = {
-                    showDialog = false
-                    navController.navigate("game/$generatedCode")
+                    mostrarDialogo = false
+                    navController.navigate("juego/$codigoGenerado")
                 }) {
-                    Text("Go to Game")
+                    Text("Ir al juego")
                 }
             },
-            title = { Text("Game Code") },
-            text = { Text("Your game code is: $generatedCode\nShare it with your opponent.") }
+            title = { Text("Código de Partida") },
+            text = { Text("Tu código es: $codigoGenerado\nCompártelo con el otro jugador.") }
         )
     }
 }
 
-// FUNCTION TO GENERATE UNIQUE GAME CODE
-fun generateUniqueCode(
+// FUNCIÓN QUE GENERA UN CÓDIGO ÚNICO
+fun generarCodigoUnico(
     db: DatabaseReference,
     onSuccess: (String) -> Unit,
     onError: () -> Unit
 ) {
-    fun tryGenerate() {
-        val newCode = generateCode()
-        db.child("games").child(newCode).get().addOnSuccessListener {
+    fun intentarGenerar() {
+        val nuevoCodigo = generarCodigo()
+        db.child("partidas").child(nuevoCodigo).get().addOnSuccessListener {
             if (!it.exists()) {
-                onSuccess(newCode)
+                onSuccess(nuevoCodigo)
             } else {
-                tryGenerate()
+                intentarGenerar()
             }
         }.addOnFailureListener {
             onError()
         }
     }
 
-    tryGenerate()
+    intentarGenerar()
 }
-

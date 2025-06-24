@@ -32,9 +32,9 @@ class MainActivity : ComponentActivity() {
                     composable("lobby") {
                         LobbyScreen(navController = navController)
                     }
-                    composable("game/{code}") { backStackEntry ->
-                        val code = backStackEntry.arguments?.getString("code") ?: ""
-                        GameScreen(navController = navController, gameCode = code)
+                    composable("juego/{codigo}") { backStackEntry ->
+                        val codigo = backStackEntry.arguments?.getString("codigo") ?: ""
+                        GameScreen(navController = navController, codigoPartida = codigo)
                     }
                 }
             }
