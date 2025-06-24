@@ -12,61 +12,61 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.ud.taller2.model.Palabra
-import com.example.ud.taller2.model.Partida
+import com.example.ud.taller2.model.Word
+import com.example.ud.taller2.model.Game
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 @Composable
-fun GameScreen(navController: NavController, codigoPartida: String) {
+fun GameScreen(navController: NavController, gameCode: String) {
     val context = LocalContext.current
     val db = FirebaseDatabase.getInstance().reference
-    val partidaRef = db.child("partidas").child(codigoPartida)
-    val palabrasRef = db.child("palabras")
+    val gameRef = db.child("games").child(gameCode)
+    val wordsRef = db.child("words")
     val uid = FirebaseAuth.getInstance().currentUser?.uid
 
-    var partida by remember { mutableStateOf(Partida()) }
+    var game by remember { mutableStateOf(Game()) }
     var winner by remember { mutableStateOf(0) }
     var showDraw by remember { mutableStateOf(false) }
 
-    var palabraActual by remember { mutableStateOf<Palabra?>(null) }
-    var respuestaUsuario by remember { mutableStateOf("") }
-    var mostrarPregunta by remember { mutableStateOf(true) }
-    var mensajeError by remember { mutableStateOf("") }
+    var currentWord by remember { mutableStateOf<Word?>(null) }
+    var userAnswer by remember { mutableStateOf("") }
+    var showQuestion by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf("") }
 
-    // Escuchar cambios en la partida
+    // Listen for game state changes
     DisposableEffect(Unit) {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val actual = snapshot.getValue(Partida::class.java)
-                if (actual != null) {
-                    partida = actual
-                    winner = checkWin(actual.tablero)
-                    showDraw = isDraw(actual.tablero) && winner == 0
+                val updated = snapshot.getValue(Game::class.java)
+                if (updated != null) {
+                    game = updated
+                    winner = checkWinner(updated.board)
+                    showDraw = isDraw(updated.board) && winner == 0
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Connection error", Toast.LENGTH_SHORT).show()
             }
         }
 
-        partidaRef.addValueEventListener(listener)
+        gameRef.addValueEventListener(listener)
         onDispose {
-            partidaRef.removeEventListener(listener)
+            gameRef.removeEventListener(listener)
         }
     }
 
-    val isTurnoJugador = (uid == partida.jugador1 && partida.turno == 1) ||
-            (uid == partida.jugador2 && partida.turno == 2)
+    val isPlayerTurn = (uid == game.player1 && game.turn == 1) ||
+            (uid == game.player2 && game.turn == 2)
 
-    // Cargar palabra
-    LaunchedEffect(isTurnoJugador, palabraActual) {
-        if (isTurnoJugador && palabraActual == null && mostrarPregunta) {
-            palabrasRef.get().addOnSuccessListener { snapshot ->
-                val palabras = snapshot.children.mapNotNull { it.getValue(Palabra::class.java) }
-                if (palabras.isNotEmpty()) {
-                    palabraActual = palabras.random()
+    // Load word
+    LaunchedEffect(isPlayerTurn, currentWord) {
+        if (isPlayerTurn && currentWord == null && showQuestion) {
+            wordsRef.get().addOnSuccessListener { snapshot ->
+                val words = snapshot.children.mapNotNull { it.getValue(Word::class.java) }
+                if (words.isNotEmpty()) {
+                    currentWord = words.random()
                 }
             }
         }
@@ -80,57 +80,57 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
     ) {
         Text(
             text = when {
-                winner == 1 -> "¡Ganó Jugador 1!"
-                winner == 2 -> "¡Ganó Jugador 2!"
-                showDraw -> "¡Empate!"
-                else -> if (isTurnoJugador) "Tu turno" else "Turno del oponente"
+                winner == 1 -> "Player 1 wins!"
+                winner == 2 -> "Player 2 wins!"
+                showDraw -> "Draw!"
+                else -> if (isPlayerTurn) "Your turn" else "Opponent's turn"
             },
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(8.dp)
         )
 
-        // Pregunta de traducción
-        if (isTurnoJugador && palabraActual != null && mostrarPregunta) {
+        // Translation challenge
+        if (isPlayerTurn && currentWord != null && showQuestion) {
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Traduce: ${palabraActual!!.esp}", style = MaterialTheme.typography.titleMedium)
+            Text("Translate: ${currentWord!!.spanish}", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
-                value = respuestaUsuario,
-                onValueChange = { respuestaUsuario = it },
-                label = { Text("Traducción en inglés") },
+                value = userAnswer,
+                onValueChange = { userAnswer = it },
+                label = { Text("English translation") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(onClick = {
-                if (respuestaUsuario.trim().equals(palabraActual!!.eng, ignoreCase = true)) {
-                    mensajeError = ""
-                    mostrarPregunta = false
+                if (userAnswer.trim().equals(currentWord!!.english, ignoreCase = true)) {
+                    errorMessage = ""
+                    showQuestion = false // ✅ allow the player to click a cell
                 } else {
-                    mensajeError = "❌ Incorrecto. Turno perdido."
-                    val nuevoTurno = if (partida.turno == 1) 2 else 1
-                    partidaRef.child("turno").setValue(nuevoTurno)
-                    palabraActual = null
-                    mostrarPregunta = true
+                    errorMessage = "❌ Incorrect. Turn lost."
+                    val nextTurn = if (game.turn == 1) 2 else 1
+                    gameRef.child("turn").setValue(nextTurn)
+                    currentWord = null
+                    showQuestion = true
                 }
-                respuestaUsuario = ""
+                userAnswer = ""
             }) {
-                Text("Verificar")
+                Text("Check")
             }
 
-            if (mensajeError.isNotEmpty()) {
-                Text(mensajeError, color = MaterialTheme.colorScheme.error)
+            if (errorMessage.isNotEmpty()) {
+                Text(errorMessage, color = MaterialTheme.colorScheme.error)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Tablero
-        partida.tablero.forEachIndexed { rowIndex, fila ->
+        // Game board
+        game.board.forEachIndexed { rowIndex, row ->
             Row {
-                fila.forEachIndexed { colIndex, celda ->
-                    val color = when (celda) {
+                row.forEachIndexed { colIndex, cell ->
+                    val color = when (cell) {
                         1 -> Color(0xFF4CAF50)
                         2 -> Color(0xFFE53935)
                         else -> Color(0xFFBDBDBD)
@@ -142,17 +142,17 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
                             .size(40.dp)
                             .background(color)
                             .clickable(
-                                enabled = celda == 0 && winner == 0 && isTurnoJugador && !mostrarPregunta
+                                enabled = cell == 0 && winner == 0 && isPlayerTurn && !showQuestion
                             ) {
-                                hacerMovimiento(
-                                    partidaRef,
+                                makeMove(
+                                    gameRef,
                                     rowIndex,
                                     colIndex,
-                                    partida,
+                                    game,
                                     uid
                                 )
-                                palabraActual = null
-                                mostrarPregunta = true
+                                currentWord = null
+                                showQuestion = true
                             }
                     )
                 }
@@ -162,17 +162,17 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(onClick = {
-            val nuevo = Partida(
-                jugador1 = partida.jugador1,
-                jugador2 = partida.jugador2
+            val newGame = Game(
+                player1 = game.player1,
+                player2 = game.player2
             )
-            partidaRef.setValue(nuevo)
-            palabraActual = null
-            mostrarPregunta = true
-            respuestaUsuario = ""
-            mensajeError = ""
+            gameRef.setValue(newGame)
+            currentWord = null
+            showQuestion = true
+            userAnswer = ""
+            errorMessage = ""
         }) {
-            Text("Reiniciar")
+            Text("Restart")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -180,44 +180,44 @@ fun GameScreen(navController: NavController, codigoPartida: String) {
         OutlinedButton(onClick = {
             navController.popBackStack()
         }) {
-            Text("Salir")
+            Text("Exit")
         }
     }
 }
 
-// Movimiento
-fun hacerMovimiento(
+// Handle the move
+fun makeMove(
     ref: DatabaseReference,
-    fila: Int,
-    columna: Int,
-    actual: Partida,
+    row: Int,
+    column: Int,
+    current: Game,
     uid: String?
 ) {
     if (uid == null) return
-    val tablero = actual.tablero.map { it.toMutableList() }.toMutableList()
+    val board = current.board.map { it.toMutableList() }.toMutableList()
 
-    for (r in (tablero.size - 1) downTo 0) {
-        if (tablero[r][columna] == 0) {
-            tablero[r][columna] = actual.turno
+    for (r in (board.size - 1) downTo 0) {
+        if (board[r][column] == 0) {
+            board[r][column] = current.turn
             break
         }
     }
 
-    val nuevoTurno = if (actual.turno == 1) 2 else 1
+    val nextTurn = if (current.turn == 1) 2 else 1
 
-    val actualizada = actual.copy(
-        tablero = tablero,
-        turno = nuevoTurno
+    val updatedGame = current.copy(
+        board = board,
+        turn = nextTurn
     )
-    ref.setValue(actualizada)
+    ref.setValue(updatedGame)
 }
 
-// Verificación de victoria
-fun checkWin(board: List<List<Int>>): Int {
+// Check if there is a winner
+fun checkWinner(board: List<List<Int>>): Int {
     val rows = board.size
     val cols = board[0].size
 
-    fun checkDir(r: Int, c: Int, dr: Int, dc: Int): Int {
+    fun checkDirection(r: Int, c: Int, dr: Int, dc: Int): Int {
         val player = board[r][c]
         if (player == 0) return 0
         for (i in 1..3) {
@@ -230,16 +230,17 @@ fun checkWin(board: List<List<Int>>): Int {
 
     for (r in 0 until rows) {
         for (c in 0 until cols) {
-            checkDir(r, c, 0, 1).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, 1, 0).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, 1, 1).takeIf { it != 0 }?.let { return it }
-            checkDir(r, c, -1, 1).takeIf { it != 0 }?.let { return it }
+            checkDirection(r, c, 0, 1).takeIf { it != 0 }?.let { return it } // horizontal
+            checkDirection(r, c, 1, 0).takeIf { it != 0 }?.let { return it } // vertical
+            checkDirection(r, c, 1, 1).takeIf { it != 0 }?.let { return it } // diagonal down
+            checkDirection(r, c, -1, 1).takeIf { it != 0 }?.let { return it } // diagonal up
         }
     }
 
     return 0
 }
 
+// Check if it's a draw
 fun isDraw(board: List<List<Int>>): Boolean {
     return board.all { row -> row.none { it == 0 } }
 }
