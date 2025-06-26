@@ -1,4 +1,4 @@
-package com.example.ud.taller2
+package com.example.ud.taller2.view
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
