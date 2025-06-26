@@ -1,4 +1,4 @@
-package com.example.ud.taller2
+package com.example.ud.taller2.view
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
@@ -8,10 +8,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.ud.taller2.model.Partida
+import com.example.ud.taller2.repository.GameRepository
+import com.example.ud.taller2.viewmodel.GameViewModel
+import com.example.ud.taller2.viewmodel.GameViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 
 @Composable
@@ -19,6 +22,13 @@ fun LobbyScreen(navController: NavController) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseDatabase.getInstance().reference
+    val repository = remember { GameRepository(FirebaseDatabase.getInstance().reference) } // ✅ Correcto
+
+
+    // Solo se usa para generar código, no para escuchar partida aún
+    val viewModel: GameViewModel = viewModel(
+        factory = GameViewModelFactory(repository, "")
+    )
 
     var codigoPartida by remember { mutableStateOf("") }
     var mostrarDialogo by remember { mutableStateOf(false) }
@@ -35,7 +45,6 @@ fun LobbyScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // BOTÓN CREAR PARTIDA
         Button(
             onClick = {
                 val uid = auth.currentUser?.uid
@@ -44,8 +53,7 @@ fun LobbyScreen(navController: NavController) {
                     return@Button
                 }
 
-                generarCodigoUnico(
-                    db = db,
+                repository.generarCodigoUnico(
                     onSuccess = { codigo ->
                         val partida = Partida(jugador1 = uid)
                         db.child("partidas").child(codigo).setValue(partida)
@@ -58,7 +66,7 @@ fun LobbyScreen(navController: NavController) {
                             }
                     },
                     onError = {
-                        Toast.makeText(context, "Error al verificar código", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Error al generar código", Toast.LENGTH_SHORT).show()
                     }
                 )
             },
@@ -69,7 +77,6 @@ fun LobbyScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // CAMPO PARA UNIRSE
         OutlinedTextField(
             value = codigoPartida,
             onValueChange = { codigoPartida = it },
@@ -79,7 +86,6 @@ fun LobbyScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // BOTÓN UNIRSE
         Button(
             onClick = {
                 val uid = auth.currentUser?.uid
@@ -126,7 +132,6 @@ fun LobbyScreen(navController: NavController) {
         }
     }
 
-    // DIÁLOGO PARA MOSTRAR CÓDIGO GENERADO
     if (mostrarDialogo) {
         AlertDialog(
             onDismissRequest = { mostrarDialogo = false },
@@ -142,26 +147,4 @@ fun LobbyScreen(navController: NavController) {
             text = { Text("Tu código es: $codigoGenerado\nCompártelo con el otro jugador.") }
         )
     }
-}
-
-// FUNCIÓN QUE GENERA UN CÓDIGO ÚNICO
-fun generarCodigoUnico(
-    db: DatabaseReference,
-    onSuccess: (String) -> Unit,
-    onError: () -> Unit
-) {
-    fun intentarGenerar() {
-        val nuevoCodigo = generarCodigo()
-        db.child("partidas").child(nuevoCodigo).get().addOnSuccessListener {
-            if (!it.exists()) {
-                onSuccess(nuevoCodigo)
-            } else {
-                intentarGenerar()
-            }
-        }.addOnFailureListener {
-            onError()
-        }
-    }
-
-    intentarGenerar()
 }

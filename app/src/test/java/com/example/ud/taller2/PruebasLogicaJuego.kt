@@ -1,5 +1,8 @@
 package com.example.ud.taller2
 
+import com.example.ud.taller2.view.generarCodigo
+import com.example.ud.taller2.view.verificarEmpate
+import com.example.ud.taller2.view.verificarGanador
 import org.junit.Assert.*
 import org.junit.Test
 
