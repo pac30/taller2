@@ -22,10 +22,9 @@ fun LobbyScreen(navController: NavController) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseDatabase.getInstance().reference
-    val repository = remember { GameRepository(FirebaseDatabase.getInstance().reference) } // ✅ Correcto
+    val repository = remember { GameRepository(FirebaseDatabase.getInstance().reference) } // ✅ Correct
 
-
-    // Solo se usa para generar código, no para escuchar partida aún
+    // Only used to generate code, not to listen to a game yet
     val viewModel: GameViewModel = viewModel(
         factory = GameViewModelFactory(repository, "")
     )
@@ -49,7 +48,7 @@ fun LobbyScreen(navController: NavController) {
             onClick = {
                 val uid = auth.currentUser?.uid
                 if (uid == null) {
-                    Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
@@ -62,17 +61,17 @@ fun LobbyScreen(navController: NavController) {
                                 mostrarDialogo = true
                             }
                             .addOnFailureListener {
-                                Toast.makeText(context, "Error al crear partida", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Error creating game", Toast.LENGTH_SHORT).show()
                             }
                     },
                     onError = {
-                        Toast.makeText(context, "Error al generar código", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Error generating code", Toast.LENGTH_SHORT).show()
                     }
                 )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Crear Partida")
+            Text("Create Game")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -80,7 +79,7 @@ fun LobbyScreen(navController: NavController) {
         OutlinedTextField(
             value = codigoPartida,
             onValueChange = { codigoPartida = it },
-            label = { Text("Código de partida") },
+            label = { Text("Game Code") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -90,7 +89,7 @@ fun LobbyScreen(navController: NavController) {
             onClick = {
                 val uid = auth.currentUser?.uid
                 if (uid == null) {
-                    Toast.makeText(context, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "User not authenticated", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
@@ -104,18 +103,18 @@ fun LobbyScreen(navController: NavController) {
                             ref.child("jugador2").setValue(uid)
                             navController.navigate("juego/$codigo")
                         } else {
-                            Toast.makeText(context, "Partida llena o inválida", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Game full or invalid", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(context, "Código no válido", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Invalid code", Toast.LENGTH_SHORT).show()
                     }
                 }.addOnFailureListener {
-                    Toast.makeText(context, "Error al consultar Firebase", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Firebase error", Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Unirse a Partida")
+            Text("Join Game")
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -128,7 +127,7 @@ fun LobbyScreen(navController: NavController) {
                 }
             }
         ) {
-            Text("Cerrar Sesión")
+            Text("Log Out")
         }
     }
 
@@ -140,11 +139,11 @@ fun LobbyScreen(navController: NavController) {
                     mostrarDialogo = false
                     navController.navigate("juego/$codigoGenerado")
                 }) {
-                    Text("Ir al juego")
+                    Text("Go to Game")
                 }
             },
-            title = { Text("Código de Partida") },
-            text = { Text("Tu código es: $codigoGenerado\nCompártelo con el otro jugador.") }
+            title = { Text("Game Code") },
+            text = { Text("Your code is: $codigoGenerado\nShare it with the other player.") }
         )
     }
 }
