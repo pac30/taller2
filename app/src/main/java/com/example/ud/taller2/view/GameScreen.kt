@@ -35,23 +35,24 @@ fun GameScreen(navController: NavController, viewModel: GameViewModel) {
     ) {
         Text(
             text = when {
-                winner == 1 -> "¡Ganó Jugador 1!"
-                winner == 2 -> "¡Ganó Jugador 2!"
-                showDraw -> "¡Empate!"
-                else -> if (isTurnoJugador) "Tu turno" else "Turno del oponente"
+                winner == 1 -> "Player 1 wins!"
+                winner == 2 -> "Player 2 wins!"
+                showDraw -> "Draw!"
+                else -> if (isTurnoJugador) "Your turn" else "Opponent's turn"
             },
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(8.dp)
         )
 
+        // Show translation question if it's the player's turn and a word is available
         if (isTurnoJugador && palabraActual != null && mostrarPregunta) {
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Traduce: ${palabraActual!!.esp}", style = MaterialTheme.typography.titleMedium)
+            Text("Translate: ${palabraActual!!.esp}", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
                 value = respuestaUsuario,
                 onValueChange = { viewModel.onRespuestaChange(it) },
-                label = { Text("Traducción en inglés") },
+                label = { Text("English translation") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -60,7 +61,7 @@ fun GameScreen(navController: NavController, viewModel: GameViewModel) {
             Button(onClick = {
                 viewModel.verificarRespuesta()
             }) {
-                Text("Verificar")
+                Text("Check")
             }
 
             if (mensajeError.isNotEmpty()) {
@@ -70,6 +71,7 @@ fun GameScreen(navController: NavController, viewModel: GameViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // Draw the board
         partida.tablero.forEachIndexed { _, fila ->
             Row {
                 fila.forEachIndexed { colIndex, celda ->
@@ -99,7 +101,7 @@ fun GameScreen(navController: NavController, viewModel: GameViewModel) {
         OutlinedButton(onClick = {
             navController.popBackStack()
         }) {
-            Text("Salir")
+            Text("Exit")
         }
     }
 }

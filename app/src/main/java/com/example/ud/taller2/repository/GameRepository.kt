@@ -6,7 +6,7 @@ import com.google.firebase.database.DatabaseReference
 
 class GameRepository(private val db: DatabaseReference) {
 
-    // Escuchar los cambios en la partida
+    // Listen for changes in the game
     fun escucharPartida(codigo: String, onUpdate: (Partida) -> Unit) {
         db.child("partidas").child(codigo).addValueEventListener(object : com.google.firebase.database.ValueEventListener {
             override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
@@ -17,7 +17,7 @@ class GameRepository(private val db: DatabaseReference) {
             }
 
             override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                // Puedes manejar errores si lo deseas
+                // You can handle errors here if needed
             }
         })
     }
@@ -90,7 +90,7 @@ class GameRepository(private val db: DatabaseReference) {
         }
     }
 
-    // ✅ FUNCIÓN PARA GENERAR CÓDIGOS ÚNICOS CON LETRAS Y NÚMEROS
+    // ✅ FUNCTION TO GENERATE UNIQUE CODES WITH LETTERS AND NUMBERS
     fun generarCodigoUnico(
         onSuccess: (String) -> Unit,
         onError: () -> Unit
@@ -105,7 +105,7 @@ class GameRepository(private val db: DatabaseReference) {
                 if (!it.exists()) {
                     onSuccess(nuevoCodigo)
                 } else {
-                    intentarGenerar() // Intenta de nuevo si ya existe
+                    intentarGenerar() // Try again if it already exists
                 }
             }.addOnFailureListener {
                 onError()

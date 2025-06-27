@@ -23,14 +23,14 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
             .fillMaxSize(),
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Iniciar Sesión", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "Sign In", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Correo electrónico") },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -39,7 +39,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Contraseña") },
+            label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -51,7 +51,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
                 auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
                             navController.navigate("lobby") {
                                 popUpTo("login") { inclusive = true }
                             }
@@ -62,7 +62,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Iniciar Sesión")
+            Text("Sign In")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -72,7 +72,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
                 auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            Toast.makeText(context, "Usuario registrado", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "User registered", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(context, "Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                         }
@@ -80,7 +80,7 @@ fun LoginScreen(auth: FirebaseAuth, navController: NavController) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Registrarse")
+            Text("Register")
         }
     }
 }

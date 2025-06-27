@@ -42,18 +42,18 @@ class GameViewModel(
     val isTurnoJugador: StateFlow<Boolean> = _isTurnoJugador
 
     init {
-        // ✅ Escucha actualizaciones de la partida
+        // ✅ Listen for updates to the game
         repository.escucharPartida(codigoPartida) { nuevaPartida ->
             _partida.value = nuevaPartida
             _winner.value = repository.verificarGanador(nuevaPartida.tablero)
             _showDraw.value = repository.verificarEmpate(nuevaPartida.tablero) && _winner.value == 0
             _isTurnoJugador.value = esMiTurno(nuevaPartida)
 
-            // ✅ Verifica si debe cargar palabra
+            // ✅ Check whether to load a new word
             cargarPalabraSiEsTurno()
         }
 
-        // ✅ Opción adicional: también reacciona al cambio de turno para cargar palabra
+        // ✅ Optional: also react to turn changes to load a new word
         viewModelScope.launch {
             isTurnoJugador.collect { turno ->
                 if (turno) {
@@ -91,7 +91,7 @@ class GameViewModel(
             _mensajeError.value = ""
             _mostrarPregunta.value = false
         } else {
-            _mensajeError.value = "❌ Incorrecto. Turno perdido."
+            _mensajeError.value = "❌ Incorrect. Turn lost."
             val nuevoTurno = if (_partida.value.turno == 1) 2 else 1
             repository.cambiarTurno(codigoPartida, nuevoTurno)
             _palabraActual.value = null
@@ -102,7 +102,7 @@ class GameViewModel(
 
     fun hacerMovimiento(columna: Int) {
         val p = _partida.value
-        repository.hacerMovimiento(codigoPartida, 0, columna, p) // fila se calcula internamente
+        repository.hacerMovimiento(codigoPartida, 0, columna, p) // row is calculated internally
         _palabraActual.value = null
         _mostrarPregunta.value = true
     }
@@ -119,8 +119,8 @@ class GameViewModel(
         val db = com.google.firebase.database.FirebaseDatabase.getInstance().reference
 
         fun intentarGenerar() {
-            val chars = ('A'..'Z') + ('0'..'9') // Lista combinada correctamente
-            val nuevoCodigo = (1..6) // 6 letras/cifras
+            val chars = ('A'..'Z') + ('0'..'9') // Properly combined list
+            val nuevoCodigo = (1..6) // 6 letters/digits
                 .map { chars.random() }
                 .joinToString("")
 
